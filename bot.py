@@ -14,6 +14,8 @@ WEBAPP_PORT = int(os.getenv("WEBAPP_PORT", "8080"))
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
+CORRECT_PASSWORD = "601593"
+
 HTML = """<!DOCTYPE html>
 <html>
 <head>
@@ -21,23 +23,23 @@ HTML = """<!DOCTYPE html>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         *{margin:0;padding:0;box-sizing:border-box;}
-        body{background:#000;font-family:-apple-system,system-ui,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;}
+        body{background:#fff;font-family:-apple-system,system-ui,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;}
         .container{width:100%;max-width:400px;padding:20px;}
-        .title{text-align:center;font-size:32px;font-weight:bold;margin-bottom:40px;margin-top:60px;}
-        .subtitle{font-size:18px;color:#aaa;margin-bottom:30px;text-align:center;}
-        .password-input{width:100%;padding:16px;font-size:24px;background:#1a1a1a;border:1px solid #333;border-radius:12px;color:#fff;margin-bottom:30px;outline:none;text-align:center;letter-spacing:2px;}
+        .title{text-align:center;font-size:32px;font-weight:bold;margin-bottom:40px;margin-top:60px;color:#000;}
+        .subtitle{font-size:18px;color:#666;margin-bottom:30px;text-align:center;}
+        .password-input{width:100%;padding:16px;font-size:24px;background:#f5f5f5;border:1px solid #ddd;border-radius:12px;color:#000;margin-bottom:30px;outline:none;text-align:center;letter-spacing:2px;}
         .password-input:focus{border-color:#8b5cf6;}
         .keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;}
-        .key{background:#1a1a1a;border:none;border-radius:12px;padding:20px;font-size:24px;color:#fff;cursor:pointer;transition:0.2s;}
-        .key:active{background:#333;}
-        .key.backspace{background:#333;font-size:18px;}
-        .key.clear{background:#333;}
-        .status{margin-top:20px;text-align:center;font-size:14px;color:#8b5cf6;}
+        .key{background:#f5f5f5;border:none;border-radius:12px;padding:20px;font-size:24px;color:#000;cursor:pointer;transition:0.2s;}
+        .key:active{background:#e0e0e0;}
+        .key.backspace{background:#e0e0e0;font-size:18px;}
+        .key.clear{background:#e0e0e0;}
+        .status{margin-top:20px;text-align:center;font-size:14px;color:#ff4444;}
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="title" id="title">Авторизация</div>
+        <div class="title">Авторизация</div>
         <div class="subtitle">Введите пароль для входа в учетную запись Janet</div>
         <input type="password" id="password" class="password-input" readonly>
         <div class="keypad" id="keypad"></div>
@@ -51,15 +53,6 @@ HTML = """<!DOCTYPE html>
         let password = '';
         const passwordInput = document.getElementById('password');
         const statusDiv = document.getElementById('status');
-        
-        const initData = tg.initDataUnsafe;
-        const userId = initData.user?.id;
-        
-        async function checkRegistration() {
-            tg.sendData(JSON.stringify({action: 'check', user_id: userId}));
-        }
-        
-        checkRegistration();
         
         const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '⌫', '0', 'C'];
         
@@ -77,8 +70,10 @@ HTML = """<!DOCTYPE html>
         function handleKey(key) {
             if (key === '⌫') {
                 password = password.slice(0, -1);
+                statusDiv.textContent = '';
             } else if (key === 'C') {
                 password = '';
+                statusDiv.textContent = '';
             } else {
                 if (password.length < 6) {
                     password += key;
@@ -86,8 +81,7 @@ HTML = """<!DOCTYPE html>
             }
             passwordInput.value = '*'.repeat(password.length);
             
-            // Автоматический вход при вводе 4-6 цифр
-            if (password.length >= 4 && password.length <= 6) {
+            if (password.length === 6) {
                 login();
             }
         }
@@ -95,18 +89,9 @@ HTML = """<!DOCTYPE html>
         function login() {
             tg.sendData(JSON.stringify({
                 action: 'login',
-                user_id: userId,
                 password: password
             }));
             tg.close();
-        }
-        
-        window.handleTelegram = function(data) {
-            if (data.registered) {
-                document.getElementById('title').textContent = 'Авторизация';
-            } else {
-                document.getElementById('title').textContent = 'Регистрация';
-            }
         }
     </script>
 </body>
@@ -123,16 +108,14 @@ async def start(message: types.Message):
 async def handle_webapp_data(message: types.Message):
     data = json.loads(message.web_app_data.data)
     
-    if data['action'] == 'check':
-        user_id = data['user_id']
-        registered = False  # TODO: подключить PostgreSQL
-        await message.answer(json.dumps({'registered': registered}))
-    
-    elif data['action'] == 'login':
-        user_id = data['user_id']
+    if data['action'] == 'login':
         password = data['password']
-        # TODO: проверка/создание пароля в PostgreSQL
-        await message.answer(f"✅ Вход выполнен для user {user_id}")
+        
+        if password == CORRECT_PASSWORD:
+            await message.answer("✅ Пароль верный! Вход выполнен.")
+            # Здесь можно добавить логику после успешного входа
+        else:
+            await message.answer("❌ Неверный пароль. Попробуйте снова.")
 
 async def handle_webapp(request):
     return web.Response(text=HTML, content_type="text/html")
