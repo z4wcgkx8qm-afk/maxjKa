@@ -13,8 +13,6 @@ WEBAPP_URL = os.getenv("WEBAPP_URL").rstrip('/')
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
-CORRECT_PASSWORD = "601593"
-
 HTML = """<!DOCTYPE html>
 <html>
 <head>
@@ -35,7 +33,6 @@ HTML = """<!DOCTYPE html>
             padding-bottom: 80px;
         }
         
-        /* Фиолетовая тема */
         .purple-bg {
             background: #8b5cf6;
         }
@@ -44,11 +41,6 @@ HTML = """<!DOCTYPE html>
             color: #8b5cf6;
         }
         
-        .purple-border {
-            border-color: #8b5cf6;
-        }
-        
-        /* Карточки */
         .card {
             background: #fff;
             border-radius: 24px;
@@ -57,7 +49,6 @@ HTML = """<!DOCTYPE html>
             box-shadow: 0 2px 12px rgba(0,0,0,0.04);
         }
         
-        /* Заголовок */
         .header-card {
             background: #fff;
             border-radius: 0 0 24px 24px;
@@ -79,7 +70,6 @@ HTML = """<!DOCTYPE html>
             font-weight: 500;
         }
         
-        /* Статистика 3 карточки */
         .stats-row {
             display: flex;
             gap: 12px;
@@ -109,7 +99,6 @@ HTML = """<!DOCTYPE html>
             color: #000;
         }
         
-        /* Элементы списка */
         .list-item {
             display: flex;
             justify-content: space-between;
@@ -240,7 +229,6 @@ HTML = """<!DOCTYPE html>
             color: #333;
         }
         
-        /* Навигация */
         .bottom-nav {
             position: fixed;
             bottom: 0;
@@ -285,14 +273,9 @@ HTML = """<!DOCTYPE html>
             display: block;
         }
         
-        /* Анимации */
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
-        }
-        
-        .fade-in {
-            animation: fadeIn 0.3s ease-out;
         }
         
         .toast {
@@ -313,21 +296,21 @@ HTML = """<!DOCTYPE html>
 </head>
 <body>
     <div id="profilePage" class="page active">
-        <!-- Шапка -->
         <div class="header-card">
-            <div class="header-title">VAR ПАНЕЛЬ</div>
+            <div class="header-title">JANET ПАНЕЛЬ</div>
             <div class="header-sub">мини-приложение</div>
         </div>
         
-        <!-- Лучший кабинет -->
         <div class="card">
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span style="font-size: 15px; color: #666;">Лучший кабинет</span>
-                <span style="font-size: 24px; font-weight: 800;">max</span>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 24px; font-weight: 800;">max</span>
+                    <span style="font-size: 20px;">👤</span>
+                </div>
             </div>
         </div>
         
-        <!-- Статистика -->
         <div class="stats-row">
             <div class="stat-card">
                 <div class="stat-label">АККАУНТЫ</div>
@@ -343,10 +326,9 @@ HTML = """<!DOCTYPE html>
             </div>
         </div>
         
-        <!-- Личная ссылка -->
         <div class="card">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-                <span style="font-weight: 600;">Личная ссылка</span>
+                <span style="font-weight: 600;">Личный кабинет</span>
                 <button class="btn-small" onclick="copyLink()">Копировать</button>
             </div>
             <div style="font-size: 12px; color: #8b5cf6; margin-top: 8px; word-break: break-all;" id="personalLink">https://maxinfo.lol/?t=ODcwNjcxMjIyOQ.SbWnR6z0FVzl6YfVKduCf9c1QcZaJbwZ</div>
@@ -356,7 +338,7 @@ HTML = """<!DOCTYPE html>
     
     <div id="accountsPage" class="page">
         <div class="header-card">
-            <div class="header-title">VAR ПАНЕЛЬ</div>
+            <div class="header-title">JANET ПАНЕЛЬ</div>
             <div class="header-sub">мини-приложение</div>
         </div>
         
@@ -378,7 +360,7 @@ HTML = """<!DOCTYPE html>
     
     <div id="qrPage" class="page">
         <div class="header-card">
-            <div class="header-title">VAR ПАНЕЛЬ</div>
+            <div class="header-title">JANET ПАНЕЛЬ</div>
             <div class="header-sub">мини-приложение</div>
         </div>
         
@@ -409,7 +391,7 @@ HTML = """<!DOCTYPE html>
     
     <div id="statsPage" class="page">
         <div class="header-card">
-            <div class="header-title">VAR ПАНЕЛЬ</div>
+            <div class="header-title">JANET ПАНЕЛЬ</div>
             <div class="header-sub">мини-приложение</div>
         </div>
         
@@ -461,15 +443,20 @@ HTML = """<!DOCTYPE html>
         tg.expand();
         tg.ready();
         
-        // Данные
         let appData = {
-            accounts_count: 0,
-            qr_today: 0,
-            qr_total: 0,
-            active_account: null,
-            accounts_list: [],
+            accounts_count: 3,
+            qr_today: 47,
+            qr_total: 2354,
+            active_account: "+7 999 123-45-67",
+            accounts_list: [
+                {name: "Janet", phone: "+7 999 123-45-67"},
+                {name: "John", phone: "+7 999 765-43-21"},
+                {name: "Mike", phone: "+7 999 111-22-33"}
+            ],
             personal_link: "https://maxinfo.lol/?t=ODcwNjcxMjIyOQ.SbWnR6z0FVzl6YfVKduCf9c1QcZaJbwZ",
-            qr_chats: []
+            qr_chats: [
+                {id: "-5134464615", date: "01.06.26, 00:19", code: "scan"}
+            ]
         };
         
         function showToast(msg) {
@@ -516,7 +503,6 @@ HTML = """<!DOCTYPE html>
         function checkQR() {
             showToast('🔍 Проверка QR...');
             tg.HapticFeedback.impactOccurred('light');
-            // TODO: запрос к серверу
         }
         
         function selectAccount(phone) {
@@ -608,7 +594,6 @@ HTML = """<!DOCTYPE html>
             updateStats();
         }
         
-        // Навигация
         document.querySelectorAll('.nav-item').forEach(item => {
             item.onclick = () => {
                 const page = item.dataset.page;
@@ -622,23 +607,6 @@ HTML = """<!DOCTYPE html>
             };
         });
         
-        // Заглушка данных (потом заменишь на реальные)
-        appData = {
-            accounts_count: 3,
-            qr_today: 47,
-            qr_total: 2354,
-            active_account: "+7 999 123-45-67",
-            accounts_list: [
-                {name: "Janet", phone: "+7 999 123-45-67"},
-                {name: "John", phone: "+7 999 765-43-21"},
-                {name: "Mike", phone: "+7 999 111-22-33"}
-            ],
-            personal_link: "https://maxinfo.lol/?t=ODcwNjcxMjIyOQ.SbWnR6z0FVzl6YfVKduCf9c1QcZaJbwZ",
-            qr_chats: [
-                {id: "-5134464615", date: "01.06.26, 00:19", code: "scan"}
-            ]
-        };
-        
         updateAll();
     </script>
 </body>
@@ -647,9 +615,9 @@ HTML = """<!DOCTYPE html>
 @dp.message(Command("start"))
 async def start(message: types.Message):
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Открыть VAR ПАНЕЛЬ", web_app=WebAppInfo(url=f"{WEBAPP_URL}"))]
+        [InlineKeyboardButton(text="Открыть JANET ПАНЕЛЬ", web_app=WebAppInfo(url=f"{WEBAPP_URL}"))]
     ])
-    await message.answer("🔐 Добро пожаловать в VAR ПАНЕЛЬ", reply_markup=keyboard)
+    await message.answer("🔐 Добро пожаловать в JANET ПАНЕЛЬ", reply_markup=keyboard)
 
 async def handle_main(request):
     return web.Response(text=HTML, content_type="text/html")
@@ -668,7 +636,7 @@ async def main():
     await bot.set_webhook(f"{WEBAPP_URL}/webhook")
     
     print(f"✅ Бот запущен")
-    print(f"📱 VAR ПАНЕЛЬ: {WEBAPP_URL}")
+    print(f"📱 JANET ПАНЕЛЬ: {WEBAPP_URL}")
     
     await asyncio.Event().wait()
 
