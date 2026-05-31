@@ -13,248 +13,537 @@ WEBAPP_URL = os.getenv("WEBAPP_URL").rstrip('/')
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
-CORRECT_PASSWORD = "601593"
-
-user_data = {
+# Данные пользователя (потом заменишь на БД)
+USER_PASSWORD = "601593"
+USER_DATA = {
     "accounts": 128,
     "today": 47,
-    "total_qr": 2354,
-    "accounts_list": [{"name": "Janet", "phone": "+7 999 123-45-67"}, {"name": "John", "phone": "+7 999 765-43-21"}],
-    "groups_list": [{"name": "MAX Community", "members": 1243}, {"name": "Bot Developers", "members": 567}]
+    "total_qr": 2354
 }
 
-HTML_AUTH = """<!DOCTYPE html>
+HTML = """<!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        *{margin:0;padding:0;box-sizing:border-box;touch-action:manipulation;}
-        body{background:#fff;font-family:-apple-system,system-ui,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;}
-        .container{width:100%;max-width:400px;padding:20px;}
-        .title{text-align:center;font-size:32px;font-weight:bold;margin-bottom:40px;margin-top:60px;color:#000;}
-        .subtitle{font-size:18px;color:#666;margin-bottom:30px;text-align:center;}
-        .password-input{width:100%;padding:16px;font-size:24px;background:#f5f5f5;border:1px solid #ddd;border-radius:12px;color:#000;margin-bottom:30px;outline:none;text-align:center;letter-spacing:2px;}
-        .password-input:focus{border-color:#8b5cf6;}
-        .keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;}
-        .key{background:#f5f5f5;border:none;border-radius:12px;padding:20px;font-size:24px;color:#000;cursor:pointer;transition:0.2s;touch-action:manipulation;}
-        .key:active{background:#e0e0e0;}
-        .key.backspace{background:#e0e0e0;font-size:18px;}
-        .key.clear{background:#e0e0e0;}
-        .status{margin-top:20px;text-align:center;font-size:14px;color:#ff4444;}
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            background: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            min-height: 100vh;
+        }
+        
+        /* Анимации */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        
+        .shake {
+            animation: shake 0.3s ease-in-out;
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.3s ease-out;
+        }
+        
+        /* Экран авторизации */
+        .auth-screen {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .auth-container {
+            width: 100%;
+            max-width: 350px;
+        }
+        
+        .logo {
+            font-size: 48px;
+            font-weight: 800;
+            color: #000;
+            text-align: center;
+            margin-bottom: 60px;
+            letter-spacing: 2px;
+        }
+        
+        .subtitle {
+            font-size: 16px;
+            color: #666;
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .password-field {
+            width: 100%;
+            background: #f5f5f5;
+            border: 1px solid #e0e0e0;
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+            font-size: 32px;
+            letter-spacing: 8px;
+            font-weight: 600;
+            color: #000;
+            margin-bottom: 30px;
+            font-family: monospace;
+        }
+        
+        .keypad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        
+        .key {
+            background: #f5f5f5;
+            border: none;
+            border-radius: 16px;
+            padding: 20px;
+            font-size: 28px;
+            font-weight: 500;
+            color: #000;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            touch-action: manipulation;
+        }
+        
+        .key:active {
+            background: #e0e0e0;
+            transform: scale(0.96);
+        }
+        
+        .key.special {
+            background: #e8e8e8;
+            font-size: 20px;
+        }
+        
+        .message {
+            text-align: center;
+            padding: 12px;
+            border-radius: 12px;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        
+        .message.error {
+            background: #fee;
+            color: #e33;
+        }
+        
+        .message.success {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+        
+        /* Экран меню */
+        .menu-screen {
+            display: none;
+            min-height: 100vh;
+            background: #f8f9fa;
+            padding: 20px;
+            padding-bottom: 90px;
+        }
+        
+        /* Верхняя карточка */
+        .profile-card {
+            background: #fff;
+            border-radius: 24px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+        }
+        
+        .profile-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        
+        .profile-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #999;
+            letter-spacing: 0.5px;
+        }
+        
+        .refresh-btn {
+            background: #f0f0f0;
+            border: none;
+            border-radius: 30px;
+            padding: 8px 16px;
+            font-size: 13px;
+            color: #666;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        
+        .refresh-btn:active {
+            background: #e0e0e0;
+            transform: scale(0.96);
+        }
+        
+        .max-title {
+            font-size: 44px;
+            font-weight: 800;
+            color: #000;
+            text-align: center;
+            letter-spacing: 2px;
+        }
+        
+        /* Три карточки статистики */
+        .stats-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            flex: 1;
+            background: #fff;
+            border-radius: 20px;
+            padding: 16px;
+            text-align: center;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+        }
+        
+        .stat-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: #999;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+        
+        .stat-value {
+            font-size: 28px;
+            font-weight: 800;
+            color: #000;
+        }
+        
+        /* Список */
+        .list-card {
+            background: #fff;
+            border-radius: 20px;
+            padding: 4px 16px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+        }
+        
+        .list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .list-item:last-child {
+            border-bottom: none;
+        }
+        
+        .list-item-name {
+            font-weight: 500;
+            color: #000;
+        }
+        
+        .list-item-value {
+            color: #8b5cf6;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        
+        /* Навигация */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #fff;
+            border-radius: 28px 28px 0 0;
+            padding: 12px 20px 25px;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.05);
+        }
+        
+        .nav-slider {
+            display: flex;
+            background: #f0f0f0;
+            border-radius: 30px;
+            padding: 4px;
+        }
+        
+        .nav-item {
+            flex: 1;
+            text-align: center;
+            padding: 10px 0;
+            border-radius: 26px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #888;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .nav-item.active {
+            background: #8b5cf6;
+            color: #fff;
+        }
+        
+        .page {
+            display: none;
+        }
+        
+        .page.active {
+            display: block;
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="title">Авторизация</div>
-        <div class="subtitle">Введите пароль для входа в учетную запись Janet</div>
-        <input type="password" id="password" class="password-input" readonly>
-        <div class="keypad" id="keypad"></div>
-        <div class="status" id="status"></div>
+    <!-- Экран авторизации -->
+    <div id="authScreen" class="auth-screen">
+        <div class="auth-container">
+            <div class="logo">MAX</div>
+            <div class="subtitle">Введите пароль для входа<br>в учетную запись Janet</div>
+            <div class="password-field" id="passwordDots">••••••</div>
+            <div class="keypad" id="keypad"></div>
+            <div id="message"></div>
+        </div>
     </div>
+    
+    <!-- Экран меню -->
+    <div id="menuScreen" class="menu-screen">
+        <div id="profilePage" class="page active">
+            <div class="profile-card">
+                <div class="profile-header">
+                    <span class="profile-label">ЛИЧНЫЙ КАБИНЕТ</span>
+                    <button class="refresh-btn" onclick="refreshData()">🔄 Обновить</button>
+                </div>
+                <div class="max-title">MAX</div>
+            </div>
+            <div class="stats-row">
+                <div class="stat-card">
+                    <div class="stat-label">АККАУНТЫ</div>
+                    <div class="stat-value" id="accountsValue">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">ЗА СЕГОДНЯ</div>
+                    <div class="stat-value" id="todayValue">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">QR ВСЕГО</div>
+                    <div class="stat-value" id="totalValue">0</div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="accountsPage" class="page">
+            <div class="profile-card">
+                <div class="profile-header">
+                    <span class="profile-label">АККАУНТЫ MAX</span>
+                </div>
+            </div>
+            <div class="list-card" id="accountsList"></div>
+        </div>
+        
+        <div id="groupsPage" class="page">
+            <div class="profile-card">
+                <div class="profile-header">
+                    <span class="profile-label">ГРУППЫ</span>
+                </div>
+            </div>
+            <div class="list-card" id="groupsList"></div>
+        </div>
+        
+        <div id="statsPage" class="page">
+            <div class="profile-card">
+                <div class="profile-header">
+                    <span class="profile-label">СТАТИСТИКА</span>
+                </div>
+            </div>
+            <div class="stats-row">
+                <div class="stat-card">
+                    <div class="stat-label">АККАУНТЫ</div>
+                    <div class="stat-value" id="statsAccounts">0</div>
+                </div>
+            </div>
+            <div class="stats-row">
+                <div class="stat-card">
+                    <div class="stat-label">QR СЕГОДНЯ</div>
+                    <div class="stat-value" id="statsToday">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">QR ВСЕГО</div>
+                    <div class="stat-value" id="statsTotal">0</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bottom-nav">
+            <div class="nav-slider" id="navSlider">
+                <div class="nav-item active" data-page="profile">Профиль</div>
+                <div class="nav-item" data-page="accounts">Аккаунты</div>
+                <div class="nav-item" data-page="groups">Группы</div>
+                <div class="nav-item" data-page="stats">Статистика</div>
+            </div>
+        </div>
+    </div>
+
     <script>
         const tg = Telegram.WebApp;
         tg.expand();
         tg.ready();
         
-        let password = '';
-        const passwordInput = document.getElementById('password');
-        const statusDiv = document.getElementById('status');
+        // Данные (потом будут с сервера)
+        let appData = {
+            accounts: 128,
+            today: 47,
+            total_qr: 2354,
+            accounts_list: [
+                {name: "Janet", phone: "+7 999 123-45-67"},
+                {name: "John", phone: "+7 999 765-43-21"}
+            ],
+            groups_list: [
+                {name: "MAX Community", members: 1243},
+                {name: "Bot Developers", members: 567}
+            ]
+        };
         
+        let currentPassword = '';
+        const CORRECT_PASSWORD = "601593";
+        
+        // Отрисовка клавиатуры
         const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '⌫', '0', 'C'];
-        
         const keypad = document.getElementById('keypad');
+        
         keys.forEach(key => {
             const btn = document.createElement('button');
             btn.className = 'key';
-            if (key === '⌫') btn.classList.add('backspace');
-            if (key === 'C') btn.classList.add('clear');
+            if (key === '⌫' || key === 'C') btn.classList.add('special');
             btn.textContent = key;
             btn.onclick = () => handleKey(key);
             keypad.appendChild(btn);
         });
         
         function handleKey(key) {
+            const msgDiv = document.getElementById('message');
+            msgDiv.innerHTML = '';
+            
             if (key === '⌫') {
-                password = password.slice(0, -1);
-                statusDiv.textContent = '';
+                currentPassword = currentPassword.slice(0, -1);
             } else if (key === 'C') {
-                password = '';
-                statusDiv.textContent = '';
+                currentPassword = '';
             } else {
-                if (password.length < 6) {
-                    password += key;
+                if (currentPassword.length < 6) {
+                    currentPassword += key;
                 }
             }
-            passwordInput.value = '*'.repeat(password.length);
             
-            if (password.length === 6) {
-                login();
+            // Обновляем отображение
+            const dots = document.getElementById('passwordDots');
+            dots.textContent = '•'.repeat(currentPassword.length) + '••••••'.slice(currentPassword.length);
+            
+            // Проверяем при 6 цифрах
+            if (currentPassword.length === 6) {
+                if (currentPassword === CORRECT_PASSWORD) {
+                    showSuccess();
+                } else {
+                    showError();
+                }
             }
         }
         
-        function login() {
-            tg.sendData(JSON.stringify({
-                action: 'login',
-                password: password
-            }));
-        }
-    </script>
-</body>
-</html>"""
-
-HTML_MENU = """<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <style>
-        *{margin:0;padding:0;box-sizing:border-box;touch-action:manipulation;}
-        body{background:#f0f0f0;font-family:-apple-system,system-ui,sans-serif;padding:20px;padding-bottom:100px;}
-        
-        .top-card{background:#fff;border-radius:20px;padding:20px;margin-bottom:20px;box-shadow:0 2px 10px rgba(0,0,0,0.05);}
-        .top-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:30px;}
-        .top-header-left{font-size:14px;font-weight:600;color:#888;letter-spacing:0.5px;}
-        .refresh-btn{background:#f5f5f5;border:none;border-radius:30px;padding:8px 16px;font-size:13px;color:#666;cursor:pointer;}
-        .max-logo{font-size:48px;font-weight:800;color:#000;text-align:center;letter-spacing:2px;}
-        
-        .stats-row{display:flex;gap:12px;margin-bottom:20px;}
-        .stat-card{flex:1;background:#fff;border-radius:20px;padding:16px;text-align:center;box-shadow:0 2px 10px rgba(0,0,0,0.05);}
-        .stat-label{font-size:11px;font-weight:600;color:#888;letter-spacing:0.5px;margin-bottom:12px;}
-        .stat-value{font-size:28px;font-weight:800;color:#000;}
-        
-        .bottom-nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-radius:25px 25px 0 0;padding:12px 20px 25px;box-shadow:0 -2px 20px rgba(0,0,0,0.05);}
-        .nav-slider{display:flex;background:#f0f0f0;border-radius:30px;padding:4px;margin-bottom:10px;}
-        .slider-item{flex:1;text-align:center;padding:8px 0;border-radius:25px;font-size:14px;font-weight:500;color:#888;cursor:pointer;transition:0.2s;}
-        .slider-item.active{background:#8b5cf6;color:#fff;}
-        
-        .content-page{display:none;}
-        .content-page.active{display:block;}
-        
-        .list-item{background:#fff;border-radius:15px;padding:15px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;}
-        .list-item-name{font-weight:600;color:#000;}
-        .list-item-value{color:#8b5cf6;font-weight:600;}
-    </style>
-</head>
-<body>
-    <div id="profilePage" class="content-page active">
-        <div class="top-card">
-            <div class="top-header">
-                <span class="top-header-left">ЛИЧНЫЙ КАБИНЕТ</span>
-                <button class="refresh-btn" onclick="refresh()">🔄 Обновить</button>
-            </div>
-            <div class="max-logo">MAX</div>
-        </div>
-        <div class="stats-row">
-            <div class="stat-card">
-                <div class="stat-label">АККАУНТЫ</div>
-                <div class="stat-value" id="accountsValue">128</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">ЗА СЕГОДНЯ</div>
-                <div class="stat-value" id="todayValue">47</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">QR ЗА ВСЕ ВРЕМЯ</div>
-                <div class="stat-value" id="totalQrValue">2354</div>
-            </div>
-        </div>
-    </div>
-    
-    <div id="accountsPage" class="content-page">
-        <div class="top-card">
-            <div class="top-header">
-                <span class="top-header-left">АККАУНТЫ MAX</span>
-            </div>
-        </div>
-        <div id="accountsList"></div>
-    </div>
-    
-    <div id="groupsPage" class="content-page">
-        <div class="top-card">
-            <div class="top-header">
-                <span class="top-header-left">ГРУППЫ</span>
-            </div>
-        </div>
-        <div id="groupsList"></div>
-    </div>
-    
-    <div id="statsPage" class="content-page">
-        <div class="top-card">
-            <div class="top-header">
-                <span class="top-header-left">СТАТИСТИКА</span>
-            </div>
-        </div>
-        <div class="stat-card" style="margin-bottom:10px;">
-            <div class="stat-label">ВСЕГО АККАУНТОВ</div>
-            <div class="stat-value" id="statsAccounts">128</div>
-        </div>
-        <div class="stat-card" style="margin-bottom:10px;">
-            <div class="stat-label">QR СЕГОДНЯ</div>
-            <div class="stat-value" id="statsToday">47</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-label">QR ВСЕГО</div>
-            <div class="stat-value" id="statsTotal">2354</div>
-        </div>
-    </div>
-    
-    <div class="bottom-nav">
-        <div class="nav-slider" id="navSlider">
-            <div class="slider-item active" data-page="profile">Профиль</div>
-            <div class="slider-item" data-page="accounts">Аккаунты</div>
-            <div class="slider-item" data-page="groups">Группы</div>
-            <div class="slider-item" data-page="stats">Статистика</div>
-        </div>
-    </div>
-
-    <script>
-        const tg = Telegram.WebApp;
-        tg.expand();
-        tg.ready();
-        
-        function switchPage(page) {
-            document.querySelectorAll('.content-page').forEach(p => p.classList.remove('active'));
-            document.getElementById(page + 'Page').classList.add('active');
+        function showSuccess() {
+            const msgDiv = document.getElementById('message');
+            msgDiv.innerHTML = '<div class="message success fade-in">✅ Пароль верный!</div>';
             
-            document.querySelectorAll('.slider-item').forEach(item => {
-                item.classList.remove('active');
-                if(item.dataset.page === page) item.classList.add('active');
-            });
+            // Переключаем на меню через секунду
+            setTimeout(() => {
+                document.getElementById('authScreen').style.display = 'none';
+                document.getElementById('menuScreen').style.display = 'block';
+                updateAllData();
+            }, 500);
         }
         
-        document.querySelectorAll('.slider-item').forEach(item => {
-            item.onclick = () => switchPage(item.dataset.page);
+        function showError() {
+            const msgDiv = document.getElementById('message');
+            msgDiv.innerHTML = '<div class="message error fade-in shake">❌ Неверный пароль</div>';
+            currentPassword = '';
+            document.getElementById('passwordDots').textContent = '••••••';
+            
+            // Анимация поля
+            const field = document.querySelector('.password-field');
+            field.classList.add('shake');
+            setTimeout(() => field.classList.remove('shake'), 300);
+        }
+        
+        // Навигация
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.onclick = () => {
+                const page = item.dataset.page;
+                document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+                item.classList.add('active');
+                
+                document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+                document.getElementById(page + 'Page').classList.add('active');
+                
+                tg.HapticFeedback.impactOccurred('light');
+            };
         });
         
-        function refresh() {
-            tg.sendData(JSON.stringify({action: 'refresh'}));
-        }
-        
-        function updateData(data) {
-            document.getElementById('accountsValue').innerText = data.accounts;
-            document.getElementById('todayValue').innerText = data.today;
-            document.getElementById('totalQrValue').innerText = data.total_qr;
-            document.getElementById('statsAccounts').innerText = data.accounts;
-            document.getElementById('statsToday').innerText = data.today;
-            document.getElementById('statsTotal').innerText = data.total_qr;
+        function updateAllData() {
+            document.getElementById('accountsValue').innerText = appData.accounts;
+            document.getElementById('todayValue').innerText = appData.today;
+            document.getElementById('totalValue').innerText = appData.total_qr;
+            document.getElementById('statsAccounts').innerText = appData.accounts;
+            document.getElementById('statsToday').innerText = appData.today;
+            document.getElementById('statsTotal').innerText = appData.total_qr;
             
             const accountsList = document.getElementById('accountsList');
             accountsList.innerHTML = '';
-            data.accounts_list?.forEach(acc => {
-                accountsList.innerHTML += `<div class="list-item"><span class="list-item-name">${acc.name}</span><span class="list-item-value">${acc.phone}</span></div>`;
+            appData.accounts_list.forEach(acc => {
+                accountsList.innerHTML += `
+                    <div class="list-item">
+                        <span class="list-item-name">${acc.name}</span>
+                        <span class="list-item-value">${acc.phone}</span>
+                    </div>
+                `;
             });
             
             const groupsList = document.getElementById('groupsList');
             groupsList.innerHTML = '';
-            data.groups_list?.forEach(group => {
-                groupsList.innerHTML += `<div class="list-item"><span class="list-item-name">${group.name}</span><span class="list-item-value">${group.members} участников</span></div>`;
+            appData.groups_list.forEach(group => {
+                groupsList.innerHTML += `
+                    <div class="list-item">
+                        <span class="list-item-name">${group.name}</span>
+                        <span class="list-item-value">${group.members} участников</span>
+                    </div>
+                `;
             });
         }
         
-        updateData(""" + json.dumps(user_data) + """);
+        function refreshData() {
+            tg.HapticFeedback.impactOccurred('medium');
+            // TODO: запрос к серверу за свежими данными
+            updateAllData();
+        }
     </script>
 </body>
 </html>"""
@@ -262,40 +551,16 @@ HTML_MENU = """<!DOCTYPE html>
 @dp.message(Command("start"))
 async def start(message: types.Message):
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Войти в MAX", web_app=WebAppInfo(url=f"{WEBAPP_URL}/auth"))]
+        [InlineKeyboardButton(text="Открыть MAX", web_app=WebAppInfo(url=f"{WEBAPP_URL}"))]
     ])
-    await message.answer("Нажмите кнопку для входа", reply_markup=keyboard)
+    await message.answer("🔐 Добро пожаловать в MAX", reply_markup=keyboard)
 
-@dp.message(F.web_app_data)
-async def handle_webapp_data(message: types.Message):
-    data = json.loads(message.web_app_data.data)
-    
-    if data.get('action') == 'login':
-        password = data['password']
-        if password == CORRECT_PASSWORD:
-            await message.answer("✅ Пароль верный!", reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="Открыть меню", web_app=WebAppInfo(url=f"{WEBAPP_URL}/menu"))]
-            ]))
-        else:
-            await message.answer("❌ Неверный пароль. Попробуйте снова.")
-    
-    elif data.get('action') == 'refresh':
-        await message.answer(json.dumps(user_data))
-
-async def handle_auth(request):
-    return web.Response(text=HTML_AUTH, content_type="text/html")
-
-async def handle_menu(request):
-    return web.Response(text=HTML_MENU, content_type="text/html")
-
-async def handle_root(request):
-    return web.Response(text="MAX Bot is running", content_type="text/html")
+async def handle_main(request):
+    return web.Response(text=HTML, content_type="text/html")
 
 async def main():
     app = web.Application()
-    app.router.add_get("/", handle_root)
-    app.router.add_get("/auth", handle_auth)
-    app.router.add_get("/menu", handle_menu)
+    app.router.add_get("/", handle_main)
     app.router.add_post("/webhook", SimpleRequestHandler(dispatcher=dp, bot=bot).handle)
     setup_application(app, dp, bot=bot)
     
@@ -307,8 +572,7 @@ async def main():
     await bot.set_webhook(f"{WEBAPP_URL}/webhook")
     
     print(f"✅ Бот запущен")
-    print(f"📱 Mini App: {WEBAPP_URL}/auth")
-    print(f"🔄 Webhook: {WEBAPP_URL}/webhook")
+    print(f"📱 Mini App: {WEBAPP_URL}")
     
     await asyncio.Event().wait()
 
