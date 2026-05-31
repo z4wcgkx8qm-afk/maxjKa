@@ -19,10 +19,11 @@ CORRECT_PASSWORD = "601593"
 HTML = """<!DOCTYPE html>
 <html>
 <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        *{margin:0;padding:0;box-sizing:border-box;}
+        *{margin:0;padding:0;box-sizing:border-box;touch-action:manipulation;}
         body{background:#fff;font-family:-apple-system,system-ui,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;}
         .container{width:100%;max-width:400px;padding:20px;}
         .title{text-align:center;font-size:32px;font-weight:bold;margin-bottom:40px;margin-top:60px;color:#000;}
@@ -30,7 +31,7 @@ HTML = """<!DOCTYPE html>
         .password-input{width:100%;padding:16px;font-size:24px;background:#f5f5f5;border:1px solid #ddd;border-radius:12px;color:#000;margin-bottom:30px;outline:none;text-align:center;letter-spacing:2px;}
         .password-input:focus{border-color:#8b5cf6;}
         .keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;}
-        .key{background:#f5f5f5;border:none;border-radius:12px;padding:20px;font-size:24px;color:#000;cursor:pointer;transition:0.2s;}
+        .key{background:#f5f5f5;border:none;border-radius:12px;padding:20px;font-size:24px;color:#000;cursor:pointer;transition:0.2s;touch-action:manipulation;}
         .key:active{background:#e0e0e0;}
         .key.backspace{background:#e0e0e0;font-size:18px;}
         .key.clear{background:#e0e0e0;}
@@ -113,7 +114,6 @@ async def handle_webapp_data(message: types.Message):
         
         if password == CORRECT_PASSWORD:
             await message.answer("✅ Пароль верный! Вход выполнен.")
-            # Здесь можно добавить логику после успешного входа
         else:
             await message.answer("❌ Неверный пароль. Попробуйте снова.")
 
