@@ -1,7 +1,7 @@
 import os
 import asyncio
-import re
-from aiogram import Bot, Dispatcher, types
+from aiogram import Bot, Dispatcher, types, F
+from aiogram.filters import Command
 from aiogram.types import WebAppInfo, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 from aiohttp import web
@@ -52,12 +52,17 @@ HTML = """<!DOCTYPE html>
 </body>
 </html>"""
 
-@dp.message(commands=["start"])
+@dp.message(Command("start"))
 async def start(message: types.Message):
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="Авторизация MAX", web_app=WebAppInfo(url=os.getenv("WEBAPP_URL")))]
     ])
     await message.answer("Нажмите кнопку для авторизации в MAX", reply_markup=keyboard)
+
+@dp.message(F.web_app_data)
+async def handle_webapp_data(message: types.Message):
+    # Здесь будет обработка номера телефона через PyMax
+    await message.answer(f"Получен номер: {message.web_app_data.data}")
 
 async def handle_webapp(request):
     return web.Response(text=HTML, content_type="text/html")
