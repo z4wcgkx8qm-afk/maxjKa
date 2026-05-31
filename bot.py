@@ -8,15 +8,13 @@ from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_applicati
 from aiohttp import web
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-WEBAPP_HOST = os.getenv("WEBAPP_HOST", "0.0.0.0")
-WEBAPP_PORT = int(os.getenv("WEBAPP_PORT", "8080"))
+WEBAPP_URL = os.getenv("WEBAPP_URL").rstrip('/')
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
 CORRECT_PASSWORD = "601593"
 
-# Данные для меню (заглушка, потом из БД)
 user_data = {
     "accounts": 128,
     "today": 47,
@@ -114,7 +112,7 @@ HTML_MENU = """<!DOCTYPE html>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         *{margin:0;padding:0;box-sizing:border-box;touch-action:manipulation;}
-        body{background:#f0f0f0;font-family:-apple-system,system-ui,sans-serif;padding:20px;}
+        body{background:#f0f0f0;font-family:-apple-system,system-ui,sans-serif;padding:20px;padding-bottom:100px;}
         
         .top-card{background:#fff;border-radius:20px;padding:20px;margin-bottom:20px;box-shadow:0 2px 10px rgba(0,0,0,0.05);}
         .top-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:30px;}
@@ -133,7 +131,7 @@ HTML_MENU = """<!DOCTYPE html>
         .slider-item.active{background:#8b5cf6;color:#fff;}
         
         .content-page{display:none;}
-        .content-page.active{display:block;margin-bottom:100px;}
+        .content-page.active{display:block;}
         
         .list-item{background:#fff;border-radius:15px;padding:15px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;}
         .list-item-name{font-weight:600;color:#000;}
@@ -263,9 +261,8 @@ HTML_MENU = """<!DOCTYPE html>
 
 @dp.message(Command("start"))
 async def start(message: types.Message):
-    base_url = os.getenv("WEBAPP_URL")
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Войти в MAX", web_app=WebAppInfo(url=f"{base_url}/auth"))]
+        [InlineKeyboardButton(text="Войти в MAX", web_app=WebAppInfo(url=f"{WEBAPP_URL}/auth"))]
     ])
     await message.answer("Нажмите кнопку для входа", reply_markup=keyboard)
 
@@ -276,9 +273,8 @@ async def handle_webapp_data(message: types.Message):
     if data.get('action') == 'login':
         password = data['password']
         if password == CORRECT_PASSWORD:
-            base_url = os.getenv("WEBAPP_URL")
             await message.answer("✅ Пароль верный!", reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="Открыть меню", web_app=WebAppInfo(url=f"{base_url}/menu"))]
+                [InlineKeyboardButton(text="Открыть меню", web_app=WebAppInfo(url=f"{WEBAPP_URL}/menu"))]
             ]))
         else:
             await message.answer("❌ Неверный пароль. Попробуйте снова.")
@@ -293,8 +289,7 @@ async def handle_menu(request):
     return web.Response(text=HTML_MENU, content_type="text/html")
 
 async def handle_root(request):
-    base_url = os.getenv("WEBAPP_URL")
-    return web.Response(text=f'<a href="{base_url}/auth">Go to /auth</a>', content_type="text/html")
+    return web.Response(text="MAX Bot is running", content_type="text/html")
 
 async def main():
     app = web.Application()
@@ -306,15 +301,14 @@ async def main():
     
     runner = web.AppRunner(app)
     await runner.setup()
-    site = web.TCPSite(runner, WEBAPP_HOST, WEBAPP_PORT)
+    site = web.TCPSite(runner, "0.0.0.0", 8080)
     await site.start()
     
-    webhook_url = f"{os.getenv('WEBHOOK_URL')}"
-    await bot.set_webhook(webhook_url)
+    await bot.set_webhook(f"{WEBAPP_URL}/webhook")
     
-    print(f"✅ Бот запущен на {WEBAPP_HOST}:{WEBAPP_PORT}")
-    print(f"📱 Mini App доступен: {os.getenv('WEBAPP_URL')}/auth")
-    print(f"🔄 Webhook: {webhook_url}")
+    print(f"✅ Бот запущен")
+    print(f"📱 Mini App: {WEBAPP_URL}/auth")
+    print(f"🔄 Webhook: {WEBAPP_URL}/webhook")
     
     await asyncio.Event().wait()
 
