@@ -20,7 +20,9 @@ CORRECT_PASSWORD = "601593"
 user_data = {
     "accounts": 128,
     "today": 47,
-    "total_qr": 2354
+    "total_qr": 2354,
+    "accounts_list": [{"name": "Janet", "phone": "+7 999 123-45-67"}, {"name": "John", "phone": "+7 999 765-43-21"}],
+    "groups_list": [{"name": "MAX Community", "members": 1243}, {"name": "Bot Developers", "members": 567}]
 }
 
 HTML_AUTH = """<!DOCTYPE html>
@@ -114,26 +116,21 @@ HTML_MENU = """<!DOCTYPE html>
         *{margin:0;padding:0;box-sizing:border-box;touch-action:manipulation;}
         body{background:#f0f0f0;font-family:-apple-system,system-ui,sans-serif;padding:20px;}
         
-        /* Верхняя рамка */
         .top-card{background:#fff;border-radius:20px;padding:20px;margin-bottom:20px;box-shadow:0 2px 10px rgba(0,0,0,0.05);}
         .top-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:30px;}
         .top-header-left{font-size:14px;font-weight:600;color:#888;letter-spacing:0.5px;}
         .refresh-btn{background:#f5f5f5;border:none;border-radius:30px;padding:8px 16px;font-size:13px;color:#666;cursor:pointer;}
         .max-logo{font-size:48px;font-weight:800;color:#000;text-align:center;letter-spacing:2px;}
         
-        /* Три карточки в ряд */
         .stats-row{display:flex;gap:12px;margin-bottom:20px;}
         .stat-card{flex:1;background:#fff;border-radius:20px;padding:16px;text-align:center;box-shadow:0 2px 10px rgba(0,0,0,0.05);}
         .stat-label{font-size:11px;font-weight:600;color:#888;letter-spacing:0.5px;margin-bottom:12px;}
         .stat-value{font-size:28px;font-weight:800;color:#000;}
         
-        /* Навигация внизу */
         .bottom-nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-radius:25px 25px 0 0;padding:12px 20px 25px;box-shadow:0 -2px 20px rgba(0,0,0,0.05);}
         .nav-slider{display:flex;background:#f0f0f0;border-radius:30px;padding:4px;margin-bottom:10px;}
         .slider-item{flex:1;text-align:center;padding:8px 0;border-radius:25px;font-size:14px;font-weight:500;color:#888;cursor:pointer;transition:0.2s;}
         .slider-item.active{background:#8b5cf6;color:#fff;}
-        .nav-items{display:flex;justify-content:space-around;}
-        .nav-text{font-size:12px;color:#888;margin-top:8px;text-align:center;}
         
         .content-page{display:none;}
         .content-page.active{display:block;margin-bottom:100px;}
@@ -152,7 +149,6 @@ HTML_MENU = """<!DOCTYPE html>
             </div>
             <div class="max-logo">MAX</div>
         </div>
-        
         <div class="stats-row">
             <div class="stat-card">
                 <div class="stat-label">АККАУНТЫ</div>
@@ -221,8 +217,6 @@ HTML_MENU = """<!DOCTYPE html>
         tg.expand();
         tg.ready();
         
-        let currentPage = 'profile';
-        
         function switchPage(page) {
             document.querySelectorAll('.content-page').forEach(p => p.classList.remove('active'));
             document.getElementById(page + 'Page').classList.add('active');
@@ -231,8 +225,6 @@ HTML_MENU = """<!DOCTYPE html>
                 item.classList.remove('active');
                 if(item.dataset.page === page) item.classList.add('active');
             });
-            
-            currentPage = page;
         }
         
         document.querySelectorAll('.slider-item').forEach(item => {
@@ -264,22 +256,16 @@ HTML_MENU = """<!DOCTYPE html>
             });
         }
         
-        // Заглушка данных
-        updateData({
-            accounts: 128,
-            today: 47,
-            total_qr: 2354,
-            accounts_list: [{name: "Janet", phone: "+7 999 123-45-67"}, {name: "John", phone: "+7 999 765-43-21"}],
-            groups_list: [{name: "MAX Community", members: 1243}, {name: "Bot Developers", members: 567}]
-        });
+        updateData(""" + json.dumps(user_data) + """);
     </script>
 </body>
 </html>"""
 
 @dp.message(Command("start"))
 async def start(message: types.Message):
+    base_url = os.getenv("WEBAPP_URL")
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Войти в MAX", web_app=WebAppInfo(url=os.getenv("WEBAPP_URL") + "/auth"))]
+        [InlineKeyboardButton(text="Войти в MAX", web_app=WebAppInfo(url=f"{base_url}/auth"))]
     ])
     await message.answer("Нажмите кнопку для входа", reply_markup=keyboard)
 
@@ -290,14 +276,14 @@ async def handle_webapp_data(message: types.Message):
     if data.get('action') == 'login':
         password = data['password']
         if password == CORRECT_PASSWORD:
+            base_url = os.getenv("WEBAPP_URL")
             await message.answer("✅ Пароль верный!", reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="Открыть меню", web_app=WebAppInfo(url=os.getenv("WEBAPP_URL") + "/menu"))]
+                [InlineKeyboardButton(text="Открыть меню", web_app=WebAppInfo(url=f"{base_url}/menu"))]
             ]))
         else:
             await message.answer("❌ Неверный пароль. Попробуйте снова.")
     
     elif data.get('action') == 'refresh':
-        # TODO: загрузить свежие данные из БД
         await message.answer(json.dumps(user_data))
 
 async def handle_auth(request):
@@ -306,18 +292,30 @@ async def handle_auth(request):
 async def handle_menu(request):
     return web.Response(text=HTML_MENU, content_type="text/html")
 
+async def handle_root(request):
+    base_url = os.getenv("WEBAPP_URL")
+    return web.Response(text=f'<a href="{base_url}/auth">Go to /auth</a>', content_type="text/html")
+
 async def main():
     app = web.Application()
+    app.router.add_get("/", handle_root)
     app.router.add_get("/auth", handle_auth)
     app.router.add_get("/menu", handle_menu)
     app.router.add_post("/webhook", SimpleRequestHandler(dispatcher=dp, bot=bot).handle)
     setup_application(app, dp, bot=bot)
+    
     runner = web.AppRunner(app)
     await runner.setup()
     site = web.TCPSite(runner, WEBAPP_HOST, WEBAPP_PORT)
     await site.start()
-    await bot.set_webhook(os.getenv("WEBHOOK_URL"))
-    print(f"Бот запущен на {WEBAPP_HOST}:{WEBAPP_PORT}")
+    
+    webhook_url = f"{os.getenv('WEBHOOK_URL')}"
+    await bot.set_webhook(webhook_url)
+    
+    print(f"✅ Бот запущен на {WEBAPP_HOST}:{WEBAPP_PORT}")
+    print(f"📱 Mini App доступен: {os.getenv('WEBAPP_URL')}/auth")
+    print(f"🔄 Webhook: {webhook_url}")
+    
     await asyncio.Event().wait()
 
 if __name__ == "__main__":
